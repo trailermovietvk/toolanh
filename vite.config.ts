@@ -3,6 +3,12 @@ import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig({
+  resolve: {
+    // Select ONNX Runtime's external-WASM entry. Transformers.js already pins
+    // the matching CDN URLs at runtime, so Cloudflare Pages does not need to
+    // deploy the unused 25.6 MiB Asyncify binary emitted by the bundled entry.
+    conditions: ["onnxruntime-web-use-extern-wasm"],
+  },
   plugins: [
     react(),
     VitePWA({

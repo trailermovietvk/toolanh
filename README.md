@@ -1,6 +1,6 @@
 # Nền Sạch
 
-Ứng dụng web xóa nền ảnh hoàn toàn trong trình duyệt. Ảnh người dùng không được tải lên máy chủ; trình duyệt chỉ tải trọng số model từ Hugging Face ở lần dùng đầu tiên và dùng lại browser cache khi còn khả dụng.
+Ứng dụng web xóa nền ảnh hoàn toàn trong trình duyệt. Ảnh người dùng không được tải lên máy chủ; trình duyệt chỉ tải trọng số model từ Hugging Face và binary ONNX Runtime khớp phiên bản từ jsDelivr ở lần dùng đầu tiên, sau đó dùng lại browser cache khi còn khả dụng.
 
 ## Chức năng
 
@@ -62,7 +62,7 @@ Thư mục deploy là dist.
 
 ## Cache, PWA và quyền riêng tư
 
-Không có backend và không upload ảnh. Trình duyệt chỉ kết nối tới Hugging Face để lấy config/trọng số model. Transformers.js quản lý browser cache cho model; Workbox chỉ precache app shell và không cache lặp file model lớn. Vì vậy app shell có thể mở offline sau lần truy cập đầu, nhưng engine chưa từng tải vẫn cần mạng.
+Không có backend và không upload ảnh. Trình duyệt kết nối tới Hugging Face để lấy config/trọng số model và jsDelivr để lấy binary ONNX Runtime đúng phiên bản. Transformers.js quản lý browser cache cho model/runtime; Workbox chỉ precache app shell và không cache lặp các file AI lớn. Vì vậy app shell có thể mở offline sau lần truy cập đầu, nhưng engine/runtime chưa từng tải vẫn cần mạng.
 
 WebGPU hoạt động tốt nhất trên Chromium mới. Khi không có hoặc khi inference WebGPU lỗi, worker tự dispose model và retry một lần bằng WASM/CPU. Safari/Firefox tùy phiên bản và thiết bị có thể chỉ dùng WASM.
 
@@ -81,6 +81,7 @@ Cloudflare Pages:
 - Output directory: dist
 - Node version: 22
 - public/_redirects đã cấu hình SPA fallback.
+- Vite chọn ONNX Runtime external-WASM; binary được tải đúng phiên bản từ CDN thay vì đưa file Asyncify 25,6 MiB vào dist, tránh vượt giới hạn 25 MiB mỗi asset của Pages.
 
 Vercel: chọn preset Vite, build command npm run build, output dist. vercel.json đã cấu hình route fallback.
 
