@@ -58,9 +58,19 @@ function send(payload: object, transfer?: Transferable[]) {
 }
 
 async function disposeModel() {
-  if (remover) await remover.dispose();
+  // A failed WebGPU pipeline can leave the session in an invalid state. In
+  // that state ONNX Runtime may throw the original GPU error again while
+  // disposing the session. Clear our references first and treat disposal as
+  // best-effort so that the WASM fallback can still be created.
+  const current = remover;
   remover = null;
   activeEngine = null;
+  if (!current) return;
+  try {
+    await current.dispose();
+  } catch (error) {
+    console.warn('Could not dispose the previous AI session.', error);
+  }
 }
 
 function modelProgress(event: ModelProgress) {
@@ -180,8 +190,16 @@ async function infer(message: ProcessMessage, allowFallback = true) {
         percent: 3,
         message: "WebGPU inference failed - retrying with WASM/CPU...",
       });
-      await load(message.engine, false, true);
-      await infer({ ...message, preferWebGpu: false }, false);
+      try {
+        await load(message.engine, false, true);
+        await infer({ ...message, preferWebGpu: false }, false);
+      } catch (fallbackError) {
+        const detail =
+          fallbackError instanceof Error
+            ? fallbackError.message
+            : 'Unknown WASM error.';
+        throw new Error('WASM fallback failed: ' + detail);
+      }
       return;
     }
     throw error;

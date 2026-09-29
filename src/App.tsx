@@ -4,6 +4,7 @@ import { EditorCanvas } from "./components/EditorCanvas";
 import { ToolPanel } from "./components/ToolPanel";
 import { UploadZone } from "./components/UploadZone";
 import { backgroundRemoval } from "./services/backgroundRemoval";
+import { formatInferenceError } from './utils/inferenceError';
 import type {
   AiProgress,
   AspectRatio,
@@ -226,9 +227,7 @@ export default function App() {
       if (!mounted.current || requestId !== inferenceId.current) return;
       const message =
         caught instanceof Error ? caught.message : "Không thể xóa nền ảnh.";
-      setError(
-        `${message} Hãy kiểm tra mạng để tải model, đóng bớt tab hoặc thử ảnh nhỏ hơn.`,
-      );
+      setError(formatInferenceError(message));
       setProgress({ stage: "error", percent: 0, message });
     }
   };
