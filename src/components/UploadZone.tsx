@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { ImagePlus, LockKeyhole, Upload } from "lucide-react";
+import { Check, ImagePlus, LockKeyhole, Sparkles, Upload } from "lucide-react";
 
 interface Props {
   onSelect: (file: File) => void;
@@ -12,16 +12,29 @@ export function UploadZone({ onSelect, error }: Props) {
   return (
     <main className="landing">
       <section className="hero-copy">
-        <span className="eyebrow">AI chạy ngay trên trình duyệt</span>
+        <span className="eyebrow">
+          <Sparkles size={14} /> AI chạy ngay trên trình duyệt
+        </span>
         <h1>
-          Xóa nền ảnh.
+          Xóa nền ảnh
           <br />
-          Nhanh và riêng tư.
+          <em>đẹp trong vài giây.</em>
         </h1>
         <p>
-          Tạo ảnh PNG trong suốt, ảnh sản phẩm và ảnh hồ sơ sắc nét. Ảnh của bạn
-          không rời khỏi thiết bị.
+          Studio AI gọn nhẹ để tách nền, tinh chỉnh và xuất ảnh sản phẩm hoặc
+          chân dung sắc nét ngay trên thiết bị.
         </p>
+        <ul className="hero-benefits">
+          <li>
+            <Check size={15} /> Tách nền AI chính xác
+          </li>
+          <li>
+            <Check size={15} /> Tinh chỉnh mask chuyên nghiệp
+          </li>
+          <li>
+            <Check size={15} /> Xuất PNG, JPG và WebP
+          </li>
+        </ul>
         <div className="privacy-pill">
           <LockKeyhole size={17} /> Ảnh được xử lý trên thiết bị của bạn.
         </div>
@@ -44,34 +57,42 @@ export function UploadZone({ onSelect, error }: Props) {
           if (file) onSelect(file);
         }}
       >
-        <div className="upload-icon">
-          <ImagePlus size={34} />
-        </div>
-        <h2>Thả ảnh vào đây</h2>
-        <p>hoặc chọn một ảnh từ máy của bạn</p>
-        <button
-          className="primary large"
-          onClick={() => inputRef.current?.click()}
-        >
-          <Upload size={19} /> Chọn ảnh
-        </button>
-        <input
-          ref={inputRef}
-          type="file"
-          accept="image/jpeg,image/png,image/webp"
-          hidden
-          onChange={(event) => {
-            const file = event.target.files?.[0];
-            if (file) onSelect(file);
-            event.target.value = "";
-          }}
-        />
-        <small>JPG, PNG hoặc WEBP · tối đa 50 MB / 40 MP</small>
-        {error && (
-          <div className="error-banner" role="alert">
-            {error}
+        <div className="upload-card-inner">
+          <div className="upload-icon">
+            <ImagePlus size={30} strokeWidth={1.7} />
           </div>
-        )}
+          <span className="upload-kicker">Bắt đầu dự án mới</span>
+          <h2>Thả ảnh vào đây</h2>
+          <p>hoặc chọn một ảnh từ máy của bạn</p>
+          <button
+            className="primary large"
+            onClick={() => inputRef.current?.click()}
+          >
+            <Upload size={19} /> Chọn ảnh
+          </button>
+          <input
+            ref={inputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            hidden
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) onSelect(file);
+              event.target.value = "";
+            }}
+          />
+          <div className="upload-meta" aria-label="Định dạng hỗ trợ">
+            <span>JPG</span>
+            <span>PNG</span>
+            <span>WEBP</span>
+            <small>Tối đa 50 MB / 40 MP</small>
+          </div>
+          {error && (
+            <div className="error-banner" role="alert">
+              {error}
+            </div>
+          )}
+        </div>
       </section>
     </main>
   );

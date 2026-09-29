@@ -1,16 +1,19 @@
 import { useRef } from "react";
 import {
   Check,
+  Crop as CropIcon,
   Download,
   Eraser,
   Image,
   Maximize2,
   Paintbrush,
+  RectangleVertical,
   Redo2,
   RotateCcw,
-  Scissors,
-  Sparkles,
+  Square,
+  SunMedium,
   Undo2,
+  WandSparkles,
 } from "lucide-react";
 import type {
   AspectRatio,
@@ -24,16 +27,34 @@ import type {
 } from "../types";
 import { formatBytes } from "../utils/image";
 
-const tools: Array<{ id: Tool; label: string; icon: typeof Sparkles }> = [
-  { id: "remove", label: "Remove", icon: Sparkles },
-  { id: "restore", label: "Restore", icon: Paintbrush },
-  { id: "erase", label: "Erase", icon: Eraser },
+const tools: Array<{ id: Tool; label: string; icon: typeof WandSparkles }> = [
+  { id: "remove", label: "Xóa nền", icon: WandSparkles },
+  { id: "restore", label: "Khôi phục", icon: Paintbrush },
+  { id: "erase", label: "Xóa vùng", icon: Eraser },
   { id: "background", label: "Nền", icon: Image },
-  { id: "crop", label: "Crop", icon: Scissors },
-  { id: "resize", label: "Resize", icon: Maximize2 },
-  { id: "shadow", label: "Shadow", icon: Sparkles },
-  { id: "export", label: "Export", icon: Download },
+  { id: "crop", label: "Cắt", icon: CropIcon },
+  { id: "resize", label: "Kích thước", icon: Maximize2 },
+  { id: "shadow", label: "Đổ bóng", icon: SunMedium },
+  { id: "export", label: "Xuất ảnh", icon: Download },
 ];
+
+function PanelHeading({
+  eyebrow,
+  title,
+  description,
+}: {
+  eyebrow: string;
+  title: string;
+  description?: string;
+}) {
+  return (
+    <header className="panel-heading">
+      <span>{eyebrow}</span>
+      <h2>{title}</h2>
+      {description && <p>{description}</p>}
+    </header>
+  );
+}
 
 interface Props {
   activeTool: Tool;
@@ -122,7 +143,7 @@ export function ToolPanel(p: Props) {
   const resize = (change: Partial<ResizeSettings>) =>
     p.setResize({ ...p.resize, ...change });
   return (
-    <aside className="tool-panel">
+    <aside className="tool-panel" aria-label="Bảng công cụ chỉnh sửa">
       <nav className="tool-tabs" aria-label="Công cụ chỉnh sửa">
         {tools.map(({ id, label, icon: Icon }) => (
           <button
@@ -130,8 +151,10 @@ export function ToolPanel(p: Props) {
             className={p.activeTool === id ? "active" : ""}
             onClick={() => p.setActiveTool(id)}
             aria-label={label}
+            aria-current={p.activeTool === id ? "page" : undefined}
+            data-tooltip={label}
           >
-            <Icon size={18} />
+            <Icon size={19} strokeWidth={1.8} />
             <span>{label}</span>
           </button>
         ))}
@@ -139,11 +162,11 @@ export function ToolPanel(p: Props) {
       <div className="panel-content">
         {p.activeTool === "remove" && (
           <section className="tool-section">
-            <h2>Xóa nền tự động</h2>
-            <p>
-              AUTO dùng BEN2 cho ảnh general-purpose. Chọn Portrait để dùng
-              MODNet nhẹ hơn cho người và tóc.
-            </p>
+            <PanelHeading
+              eyebrow="AI Remove"
+              title="Xóa nền tự động"
+              description="Chọn mô hình phù hợp, sau đó tinh chỉnh kết quả bằng bộ công cụ chuyên nghiệp."
+            />
             <div className="segmented engine-selector">
               {(["auto", "portrait", "general"] as RemovalEngine[]).map(
                 (engine) => (
@@ -175,23 +198,27 @@ export function ToolPanel(p: Props) {
                   : "Xóa nền"}
             </button>
             <div className="quick-presets">
-              <h3>Ảnh sản phẩm</h3>
+              <div className="section-label">
+                <span>Ảnh sản phẩm</span>
+                <small>Thiết lập nhanh</small>
+              </div>
               <div className="button-grid">
                 {(
                   [
-                    ["white", "Nền trắng"],
-                    ["gray", "Nền xám"],
-                    ["1:1", "Vuông 1:1"],
-                    ["4:5", "Tỷ lệ 4:5"],
-                    ["3:4", "Tỷ lệ 3:4"],
+                    ["white", "Nền trắng", Square],
+                    ["gray", "Nền xám", Square],
+                    ["1:1", "Vuông 1:1", Square],
+                    ["4:5", "Tỷ lệ 4:5", RectangleVertical],
+                    ["3:4", "Tỷ lệ 3:4", RectangleVertical],
                   ] as const
-                ).map(([id, label]) => (
+                ).map(([id, label, Icon]) => (
                   <button
                     key={id}
-                    className="secondary"
+                    className="secondary preset-button"
                     onClick={() => p.applyPreset(id)}
                   >
-                    {label}
+                    <Icon size={16} strokeWidth={1.8} />
+                    <span>{label}</span>
                   </button>
                 ))}
               </div>
@@ -216,14 +243,15 @@ export function ToolPanel(p: Props) {
         )}
         {(p.activeTool === "restore" || p.activeTool === "erase") && (
           <section className="tool-section">
-            <h2>
-              {p.activeTool === "restore"
-                ? "Khôi phục vùng ảnh"
-                : "Xóa thêm vùng nền"}
-            </h2>
-            <p>
-              Vẽ trực tiếp lên ảnh. Zoom và pan vẫn giữ tọa độ cọ chính xác.
-            </p>
+            <PanelHeading
+              eyebrow="Mask Editor"
+              title={
+                p.activeTool === "restore"
+                  ? "Khôi phục vùng ảnh"
+                  : "Xóa thêm vùng nền"
+              }
+              description="Vẽ trực tiếp lên ảnh; zoom và pan vẫn giữ tọa độ cọ chính xác."
+            />
             <RangeField
               label="Kích thước cọ"
               value={p.brushSize}
@@ -277,7 +305,11 @@ export function ToolPanel(p: Props) {
         )}
         {p.activeTool === "background" && (
           <section className="tool-section">
-            <h2>Phông nền</h2>
+            <PanelHeading
+              eyebrow="Background"
+              title="Phông nền"
+              description="Giữ nền trong suốt hoặc tạo bối cảnh phù hợp cho ảnh của bạn."
+            />
             <div className="swatches">
               {(
                 [
@@ -364,11 +396,11 @@ export function ToolPanel(p: Props) {
         )}
         {p.activeTool === "crop" && (
           <section className="tool-section">
-            <h2>Cắt ảnh</h2>
-            <p>
-              Kéo vùng crop để di chuyển. Kéo cạnh hoặc góc để đổi kích thước;
-              preset sẽ khóa tỷ lệ.
-            </p>
+            <PanelHeading
+              eyebrow="Composition"
+              title="Cắt ảnh"
+              description="Kéo vùng cắt để di chuyển; kéo cạnh hoặc góc để thay đổi kích thước."
+            />
             <div className="ratio-grid">
               {(["free", "1:1", "4:5", "3:4", "16:9"] as AspectRatio[]).map(
                 (ratio) => (
@@ -403,7 +435,11 @@ export function ToolPanel(p: Props) {
         )}
         {p.activeTool === "resize" && (
           <section className="tool-section">
-            <h2>Đổi kích thước</h2>
+            <PanelHeading
+              eyebrow="Dimensions"
+              title="Đổi kích thước"
+              description="Điều chỉnh kích thước đầu ra theo pixel hoặc phần trăm."
+            />
             <label className="field">
               <span>Chiều rộng (px)</span>
               <input
@@ -462,7 +498,11 @@ export function ToolPanel(p: Props) {
         )}
         {p.activeTool === "shadow" && (
           <section className="tool-section">
-            <h2>Đổ bóng</h2>
+            <PanelHeading
+              eyebrow="Depth"
+              title="Đổ bóng"
+              description="Tạo chiều sâu tự nhiên để chủ thể hòa vào phông nền."
+            />
             <label className="toggle-field">
               <span>Bóng mềm tự nhiên</span>
               <input
@@ -507,7 +547,11 @@ export function ToolPanel(p: Props) {
         )}
         {p.activeTool === "export" && (
           <section className="tool-section">
-            <h2>Xuất ảnh</h2>
+            <PanelHeading
+              eyebrow="Export"
+              title="Xuất ảnh"
+              description="Chọn định dạng và tải ảnh ở độ phân giải đầy đủ."
+            />
             <div className="segmented">
               {(["png", "jpeg", "webp"] as const).map((format) => (
                 <button

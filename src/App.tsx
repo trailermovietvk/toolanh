@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ImagePlus, LockKeyhole, X } from "lucide-react";
+import { ImagePlus, LockKeyhole, Sparkles, X } from "lucide-react";
 import { EditorCanvas } from "./components/EditorCanvas";
 import { ToolPanel } from "./components/ToolPanel";
 import { UploadZone } from "./components/UploadZone";
 import { backgroundRemoval } from "./services/backgroundRemoval";
-import { formatInferenceError } from './utils/inferenceError';
+import { formatInferenceError } from "./utils/inferenceError";
 import type {
   AiProgress,
   AspectRatio,
@@ -549,20 +549,35 @@ export default function App() {
           onClick={() => source && clearImage()}
           aria-label="Về trang chọn ảnh"
         >
-          <span className="brand-mark">N</span>
-          <span>Nền Sạch</span>
+          <span className="brand-mark" aria-hidden="true">
+            <Sparkles size={17} strokeWidth={2.2} />
+          </span>
+          <span className="brand-copy">
+            <strong>Nền Sạch</strong>
+            <small>AI Photo Editor</small>
+          </span>
         </button>
-        <div className="header-privacy">
-          <LockKeyhole size={15} /> Xử lý riêng tư trên thiết bị
-        </div>
         {source && (
-          <button
-            className="secondary compact"
-            onClick={() => document.getElementById("replace-input")?.click()}
-          >
-            <ImagePlus size={17} /> Đổi ảnh
-          </button>
+          <div className="header-file" title={source.file.name}>
+            <span>{source.file.name}</span>
+            <small>
+              {source.width} × {source.height} px
+            </small>
+          </div>
         )}
+        <div className="header-actions">
+          <div className="header-privacy">
+            <LockKeyhole size={14} /> Xử lý riêng tư trên thiết bị
+          </div>
+          {source && (
+            <button
+              className="secondary compact replace-button"
+              onClick={() => document.getElementById("replace-input")?.click()}
+            >
+              <ImagePlus size={17} /> Đổi ảnh
+            </button>
+          )}
+        </div>
         <input
           id="replace-input"
           hidden
@@ -571,6 +586,7 @@ export default function App() {
           onChange={(e) => {
             const file = e.target.files?.[0];
             if (file) selectImage(file);
+            e.target.value = "";
           }}
         />
       </header>
@@ -579,6 +595,13 @@ export default function App() {
       ) : (
         <main className="workspace">
           <section className="canvas-area">
+            <div className="canvas-meta" aria-hidden="true">
+              <span className="status-dot" />
+              <strong>{source.file.name}</strong>
+              <small>
+                {outputSize.width} × {outputSize.height}
+              </small>
+            </div>
             <EditorCanvas
               source={source}
               mask={mask}

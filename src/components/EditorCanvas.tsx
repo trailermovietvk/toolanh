@@ -482,49 +482,66 @@ export function EditorCanvas({
           <span>Trước</span>
         </div>
       )}
-      <div className="canvas-actions" aria-label="Điều khiển khung nhìn">
-        <button
-          className="icon-button"
-          onClick={() => zoomAt(0.8)}
-          aria-label="Thu nhỏ"
-        >
-          <ZoomOut size={18} />
-        </button>
-        <span>{Math.round(viewport.zoom * 100)}%</span>
-        <button
-          className="icon-button"
-          onClick={() => zoomAt(1.25)}
-          aria-label="Phóng to"
-        >
-          <ZoomIn size={18} />
-        </button>
-        <button
-          className="icon-button"
-          onClick={() => onViewportChange({ zoom: 1, panX: 0, panY: 0 })}
-          aria-label="Vừa khung"
-        >
-          <Maximize size={18} />
-        </button>
-        <button
-          className="icon-button"
-          onClick={() => onViewportChange({ zoom: 1, panX: 0, panY: 0 })}
-          aria-label="Đặt lại zoom"
-        >
-          <RotateCcw size={18} />
-        </button>
-        <button
-          className={`icon-button ${showOriginal ? "active" : ""}`}
-          onPointerDown={() => setShowOriginal(true)}
-          onPointerUp={() => setShowOriginal(false)}
-          onPointerLeave={() => setShowOriginal(false)}
-          aria-label="Giữ để xem ảnh gốc"
-        >
-          <Eye size={18} />
-        </button>
+      <div
+        className="canvas-actions"
+        role="toolbar"
+        aria-label="Điều khiển khung nhìn"
+      >
+        <div className="canvas-action-group">
+          <button
+            className="icon-button"
+            onClick={() => zoomAt(0.8)}
+            aria-label="Thu nhỏ"
+            data-tooltip="Thu nhỏ"
+          >
+            <ZoomOut size={18} />
+          </button>
+          <span className="zoom-readout">
+            {Math.round(viewport.zoom * 100)}%
+          </span>
+          <button
+            className="icon-button"
+            onClick={() => zoomAt(1.25)}
+            aria-label="Phóng to"
+            data-tooltip="Phóng to"
+          >
+            <ZoomIn size={18} />
+          </button>
+        </div>
+        <span className="control-divider" />
+        <div className="canvas-action-group">
+          <button
+            className="icon-button"
+            onClick={() => onViewportChange({ zoom: 1, panX: 0, panY: 0 })}
+            aria-label="Vừa khung"
+            data-tooltip="Vừa khung"
+          >
+            <Maximize size={18} />
+          </button>
+          <button
+            className="icon-button"
+            onClick={() => onViewportChange({ zoom: 1, panX: 0, panY: 0 })}
+            aria-label="Đặt lại khung nhìn"
+            data-tooltip="Đặt lại"
+          >
+            <RotateCcw size={18} />
+          </button>
+          <button
+            className={`icon-button ${showOriginal ? "active" : ""}`}
+            onPointerDown={() => setShowOriginal(true)}
+            onPointerUp={() => setShowOriginal(false)}
+            onPointerCancel={() => setShowOriginal(false)}
+            onPointerLeave={() => setShowOriginal(false)}
+            aria-label="Giữ để xem ảnh gốc"
+            data-tooltip="Giữ để xem ảnh gốc"
+          >
+            <Eye size={18} />
+          </button>
+        </div>
       </div>
       {activeTool !== "crop" && (
         <label className="comparison-control">
-          <span>Trước</span>
+          <span className="comparison-label">Trước</span>
           <input
             type="range"
             min="0"
@@ -533,7 +550,7 @@ export function EditorCanvas({
             onChange={(event) => setComparison(Number(event.target.value))}
             aria-label="So sánh ảnh trước và sau"
           />
-          <span>Sau</span>
+          <span className="comparison-label active">Sau</span>
         </label>
       )}
     </div>
