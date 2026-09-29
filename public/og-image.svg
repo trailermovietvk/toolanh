@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#f7f7f5"/>
+  <rect x="72" y="72" width="1056" height="486" rx="32" fill="#fff" stroke="#e5e7eb"/>
+  <rect x="130" y="143" width="340" height="340" rx="24" fill="#111827"/>
+  <path d="m180 408 105-195 62 111 43-79 55 163H180Z" fill="#fff"/>
+  <circle cx="398" cy="205" r="38" fill="#34d399"/>
+  <text x="535" y="275" font-family="Arial,sans-serif" font-weight="700" font-size="62" fill="#111827">Nền Sạch</text>
+  <text x="535" y="350" font-family="Arial,sans-serif" font-size="34" fill="#4b5563">Xóa nền ảnh ngay trên thiết bị</text>
+  <text x="535" y="405" font-family="Arial,sans-serif" font-size="26" fill="#059669">Nhanh · Riêng tư · Full resolution</text>
+</svg>
