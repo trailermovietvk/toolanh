@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ImagePlus, LockKeyhole, Sparkles, X } from "lucide-react";
+import { Download, ImagePlus, LockKeyhole, Sparkles, X } from "lucide-react";
 import { EditorCanvas } from "./components/EditorCanvas";
+import { EditorToolbar } from "./components/EditorToolbar";
 import { ToolPanel } from "./components/ToolPanel";
 import { UploadZone } from "./components/UploadZone";
 import { backgroundRemoval } from "./services/backgroundRemoval";
@@ -570,12 +571,22 @@ export default function App() {
             <LockKeyhole size={14} /> Xử lý riêng tư trên thiết bị
           </div>
           {source && (
-            <button
-              className="secondary compact replace-button"
-              onClick={() => document.getElementById("replace-input")?.click()}
-            >
-              <ImagePlus size={17} /> Đổi ảnh
-            </button>
+            <>
+              <button
+                className="secondary compact replace-button"
+                onClick={() =>
+                  document.getElementById("replace-input")?.click()
+                }
+              >
+                <ImagePlus size={17} /> Đổi ảnh
+              </button>
+              <button
+                className="header-export"
+                onClick={() => changeTool("export")}
+              >
+                <Download size={16} /> Xuất ảnh
+              </button>
+            </>
           )}
         </div>
         <input
@@ -594,14 +605,8 @@ export default function App() {
         <UploadZone onSelect={selectImage} error={error} />
       ) : (
         <main className="workspace">
+          <EditorToolbar activeTool={activeTool} onChange={changeTool} />
           <section className="canvas-area">
-            <div className="canvas-meta" aria-hidden="true">
-              <span className="status-dot" />
-              <strong>{source.file.name}</strong>
-              <small>
-                {outputSize.width} × {outputSize.height}
-              </small>
-            </div>
             <EditorCanvas
               source={source}
               mask={mask}
@@ -623,6 +628,10 @@ export default function App() {
               onStrokeStart={beginStroke}
               onStrokeEnd={endStroke}
               onCropDraftChange={setCropDraft}
+              canUndo={maskHistory.current.canUndo}
+              canRedo={maskHistory.current.canRedo}
+              onUndo={undo}
+              onRedo={redo}
             />
             {error && (
               <div className="workspace-error" role="alert">
@@ -670,7 +679,6 @@ export default function App() {
           </section>
           <ToolPanel
             activeTool={activeTool}
-            setActiveTool={changeTool}
             brushSize={brushSize}
             setBrushSize={setBrushSize}
             brushHardness={brushHardness}

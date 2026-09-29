@@ -1,5 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Eye, Maximize, RotateCcw, ZoomIn, ZoomOut } from "lucide-react";
+import {
+  Columns2,
+  Eye,
+  Maximize,
+  Redo2,
+  RotateCcw,
+  Undo2,
+  ZoomIn,
+  ZoomOut,
+} from "lucide-react";
 import type {
   BackgroundSettings,
   CropSettings,
@@ -46,6 +55,10 @@ interface Props {
   onStrokeStart: () => void;
   onStrokeEnd: () => void;
   onCropDraftChange: (crop: CropSettings) => void;
+  canUndo: boolean;
+  canRedo: boolean;
+  onUndo: () => void;
+  onRedo: () => void;
 }
 
 interface PreviewState {
@@ -83,6 +96,10 @@ export function EditorCanvas({
   onStrokeStart,
   onStrokeEnd,
   onCropDraftChange,
+  canUndo,
+  canRedo,
+  onUndo,
+  onRedo,
 }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -221,6 +238,31 @@ export function EditorCanvas({
     if (!context) return;
     context.setTransform(dpr, 0, 0, dpr, 0, 0);
     context.clearRect(0, 0, rect.width, rect.height);
+
+    context.save();
+    context.fillStyle = "#ffffff";
+    context.shadowColor = "rgba(24, 32, 29, 0.16)";
+    context.shadowBlur = 24;
+    context.shadowOffsetY = 8;
+    context.fillRect(rect.x, rect.y, rect.drawWidth, rect.drawHeight);
+    context.restore();
+
+    const checker = document.createElement("canvas");
+    checker.width = 20;
+    checker.height = 20;
+    const checkerContext = checker.getContext("2d");
+    if (checkerContext) {
+      checkerContext.fillStyle = "#f8f9fa";
+      checkerContext.fillRect(0, 0, 20, 20);
+      checkerContext.fillStyle = "#e6e9e7";
+      checkerContext.fillRect(0, 0, 10, 10);
+      checkerContext.fillRect(10, 10, 10, 10);
+      const pattern = context.createPattern(checker, "repeat");
+      if (pattern) {
+        context.fillStyle = pattern;
+        context.fillRect(rect.x, rect.y, rect.drawWidth, rect.drawHeight);
+      }
+    }
 
     const preview = createPreview(rect.width, rect.height);
     previewRef.current = preview;
@@ -436,6 +478,16 @@ export function EditorCanvas({
       zoom: Math.min(8, Math.max(0.2, viewport.zoom * factor)),
     });
 
+  const updateComparison = (clientX: number) => {
+    const host = hostRef.current;
+    if (!host) return;
+    const bounds = host.getBoundingClientRect();
+    const frame = dimensions();
+    const percent =
+      ((clientX - bounds.left - frame.x) / frame.drawWidth) * 100;
+    setComparison(Math.max(2, Math.min(98, percent)));
+  };
+
   const preview = previewRef.current;
   const rect = dimensions();
   const brushScale =
@@ -478,8 +530,57 @@ export function EditorCanvas({
         />
       )}
       {comparison > 0 && !showOriginal && activeTool !== "crop" && (
-        <div className="compare-line" style={{ left: compareLeft }}>
-          <span>Trước</span>
+        <div className="compare-overlay">
+          <span
+            className="compare-badge before"
+            style={{ left: rect.x + 12, top: rect.y + 12 }}
+          >
+            Trước
+          </span>
+          <span
+            className="compare-badge after"
+            style={{ left: rect.x + rect.drawWidth - 12, top: rect.y + 12 }}
+          >
+            Sau
+          </span>
+          <div
+            className="compare-line"
+            style={{
+              left: compareLeft,
+              top: rect.y,
+              height: rect.drawHeight,
+            }}
+          />
+          <button
+            className="compare-handle"
+            style={{
+              left: compareLeft,
+              top: rect.y + rect.drawHeight / 2,
+            }}
+            onPointerDown={(event) => {
+              event.currentTarget.setPointerCapture(event.pointerId);
+              updateComparison(event.clientX);
+            }}
+            onPointerMove={(event) => {
+              if (event.currentTarget.hasPointerCapture(event.pointerId))
+                updateComparison(event.clientX);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "ArrowLeft")
+                setComparison((value) => Math.max(2, value - 2));
+              else if (event.key === "ArrowRight")
+                setComparison((value) => Math.min(98, value + 2));
+              else if (event.key === "Home") setComparison(2);
+              else if (event.key === "End") setComparison(98);
+            }}
+            role="slider"
+            aria-label="So sánh ảnh trước và sau"
+            aria-valuemin={2}
+            aria-valuemax={98}
+            aria-valuenow={Math.round(comparison)}
+          >
+            <Columns2 size={16} />
+          </button>
         </div>
       )}
       <div
@@ -512,6 +613,27 @@ export function EditorCanvas({
         <div className="canvas-action-group">
           <button
             className="icon-button"
+            onClick={onUndo}
+            disabled={!canUndo}
+            aria-label="Hoàn tác"
+            data-tooltip="Hoàn tác"
+          >
+            <Undo2 size={17} />
+          </button>
+          <button
+            className="icon-button"
+            onClick={onRedo}
+            disabled={!canRedo}
+            aria-label="Làm lại"
+            data-tooltip="Làm lại"
+          >
+            <Redo2 size={17} />
+          </button>
+        </div>
+        <span className="control-divider" />
+        <div className="canvas-action-group">
+          <button
+            className="icon-button"
             onClick={() => onViewportChange({ zoom: 1, panX: 0, panY: 0 })}
             aria-label="Vừa khung"
             data-tooltip="Vừa khung"
@@ -537,22 +659,19 @@ export function EditorCanvas({
           >
             <Eye size={18} />
           </button>
+          {activeTool !== "crop" && (
+            <button
+              className={`icon-button ${comparison > 0 ? "active" : ""}`}
+              onClick={() => setComparison((value) => (value > 0 ? 0 : 50))}
+              aria-label="Bật hoặc tắt so sánh trước và sau"
+              aria-pressed={comparison > 0}
+              data-tooltip="Trước / Sau"
+            >
+              <Columns2 size={18} />
+            </button>
+          )}
         </div>
       </div>
-      {activeTool !== "crop" && (
-        <label className="comparison-control">
-          <span className="comparison-label">Trước</span>
-          <input
-            type="range"
-            min="0"
-            max="100"
-            value={comparison}
-            onChange={(event) => setComparison(Number(event.target.value))}
-            aria-label="So sánh ảnh trước và sau"
-          />
-          <span className="comparison-label active">Sau</span>
-        </label>
-      )}
     </div>
   );
 }

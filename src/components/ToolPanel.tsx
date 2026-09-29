@@ -1,19 +1,11 @@
 import { useRef } from "react";
 import {
   Check,
-  Crop as CropIcon,
   Download,
-  Eraser,
   Image,
-  Maximize2,
-  Paintbrush,
-  RectangleVertical,
   Redo2,
   RotateCcw,
-  Square,
-  SunMedium,
   Undo2,
-  WandSparkles,
 } from "lucide-react";
 import type {
   AspectRatio,
@@ -26,17 +18,6 @@ import type {
   Tool,
 } from "../types";
 import { formatBytes } from "../utils/image";
-
-const tools: Array<{ id: Tool; label: string; icon: typeof WandSparkles }> = [
-  { id: "remove", label: "Xóa nền", icon: WandSparkles },
-  { id: "restore", label: "Khôi phục", icon: Paintbrush },
-  { id: "erase", label: "Xóa vùng", icon: Eraser },
-  { id: "background", label: "Nền", icon: Image },
-  { id: "crop", label: "Cắt", icon: CropIcon },
-  { id: "resize", label: "Kích thước", icon: Maximize2 },
-  { id: "shadow", label: "Đổ bóng", icon: SunMedium },
-  { id: "export", label: "Xuất ảnh", icon: Download },
-];
 
 function PanelHeading({
   eyebrow,
@@ -58,7 +39,6 @@ function PanelHeading({
 
 interface Props {
   activeTool: Tool;
-  setActiveTool: (tool: Tool) => void;
   brushSize: number;
   setBrushSize: (value: number) => void;
   brushHardness: number;
@@ -142,23 +122,17 @@ export function ToolPanel(p: Props) {
     p.setShadow({ ...p.shadow, ...change });
   const resize = (change: Partial<ResizeSettings>) =>
     p.setResize({ ...p.resize, ...change });
+  const presetSelected = (id: "white" | "gray" | "1:1" | "4:5" | "3:4") => {
+    if (id === "white") return p.background.mode === "white";
+    if (id === "gray")
+      return (
+        p.background.mode === "color" &&
+        p.background.color.toLowerCase() === "#f1f3f5"
+      );
+    return p.crop.ratio === id;
+  };
   return (
-    <aside className="tool-panel" aria-label="Bảng công cụ chỉnh sửa">
-      <nav className="tool-tabs" aria-label="Công cụ chỉnh sửa">
-        {tools.map(({ id, label, icon: Icon }) => (
-          <button
-            key={id}
-            className={p.activeTool === id ? "active" : ""}
-            onClick={() => p.setActiveTool(id)}
-            aria-label={label}
-            aria-current={p.activeTool === id ? "page" : undefined}
-            data-tooltip={label}
-          >
-            <Icon size={19} strokeWidth={1.8} />
-            <span>{label}</span>
-          </button>
-        ))}
-      </nav>
+    <aside className="inspector-panel" aria-label="Thuộc tính công cụ">
       <div className="panel-content">
         {p.activeTool === "remove" && (
           <section className="tool-section">
@@ -205,19 +179,23 @@ export function ToolPanel(p: Props) {
               <div className="button-grid">
                 {(
                   [
-                    ["white", "Nền trắng", Square],
-                    ["gray", "Nền xám", Square],
-                    ["1:1", "Vuông 1:1", Square],
-                    ["4:5", "Tỷ lệ 4:5", RectangleVertical],
-                    ["3:4", "Tỷ lệ 3:4", RectangleVertical],
+                    ["white", "Nền trắng"],
+                    ["gray", "Nền xám"],
+                    ["1:1", "Vuông 1:1"],
+                    ["4:5", "Tỷ lệ 4:5"],
+                    ["3:4", "Tỷ lệ 3:4"],
                   ] as const
-                ).map(([id, label, Icon]) => (
+                ).map(([id, label]) => (
                   <button
                     key={id}
-                    className="secondary preset-button"
+                    className={`preset-card ${presetSelected(id) ? "selected" : ""}`}
                     onClick={() => p.applyPreset(id)}
+                    data-preset={id}
+                    aria-pressed={presetSelected(id)}
                   >
-                    <Icon size={16} strokeWidth={1.8} />
+                    <span className="preset-thumbnail" aria-hidden="true">
+                      <i />
+                    </span>
                     <span>{label}</span>
                   </button>
                 ))}
