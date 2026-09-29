@@ -12,7 +12,9 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: "autoUpdate",
+      // Do not reload an active editing session when a new deployment arrives.
+      // The waiting version becomes active on the user's next page load.
+      registerType: "prompt",
       includeAssets: ["favicon.svg"],
       manifest: {
         name: "Nền Sạch — Xóa nền ảnh trên thiết bị",

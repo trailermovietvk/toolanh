@@ -109,6 +109,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const [processed, setProcessed] = useState(false);
+  const [openingImage, setOpeningImage] = useState(false);
 
   const outputSize = useMemo(
     () => calculateOutputSize(crop, resize),
@@ -138,6 +139,7 @@ export default function App() {
     backgroundRemoval.dispose();
     setProgress({ stage: "idle", percent: 0, message: "" });
     setError(null);
+    setOpeningImage(true);
     try {
       const next = await loadSourceImage(file);
       if (!mounted.current || requestId !== imageLoadId.current) {
@@ -178,6 +180,9 @@ export default function App() {
           ? caught.message
           : "Không thể mở ảnh này. Hãy thử một ảnh khác.",
       );
+    } finally {
+      if (mounted.current && requestId === imageLoadId.current)
+        setOpeningImage(false);
     }
   };
 
@@ -524,6 +529,7 @@ export default function App() {
     maskHistory.current.clear();
     setProcessed(false);
     setExporting(false);
+    setOpeningImage(false);
     setError(null);
     setProgress({ stage: "idle", percent: 0, message: "" });
   };
@@ -577,6 +583,7 @@ export default function App() {
                 onClick={() =>
                   document.getElementById("replace-input")?.click()
                 }
+                disabled={openingImage}
               >
                 <ImagePlus size={17} /> Đổi ảnh
               </button>
@@ -602,7 +609,11 @@ export default function App() {
         />
       </header>
       {!source || !mask ? (
-        <UploadZone onSelect={selectImage} error={error} />
+        <UploadZone
+          onSelect={selectImage}
+          error={error}
+          loading={openingImage}
+        />
       ) : (
         <main className="workspace">
           <EditorToolbar activeTool={activeTool} onChange={changeTool} />

@@ -25,8 +25,20 @@ export async function loadSourceImage(file: File): Promise<SourceImage> {
   try {
     const element = new Image();
     element.decoding = "async";
-    element.src = url;
-    await element.decode();
+    await new Promise<void>((resolve, reject) => {
+      element.onload = () => resolve();
+      element.onerror = () => reject(new Error("Không thể giải mã ảnh này."));
+      element.src = url;
+    });
+    try {
+      await element.decode();
+    } catch {
+      // Some browsers reject decode() even after a valid load event. At this
+      // point natural dimensions are the reliable signal that the image is
+      // ready for canvas rendering.
+      if (!element.naturalWidth || !element.naturalHeight)
+        throw new Error("Không thể giải mã ảnh này.");
+    }
     if (!element.naturalWidth || !element.naturalHeight)
       throw new Error("Không thể đọc kích thước ảnh.");
     if (element.naturalWidth * element.naturalHeight > MAX_PIXELS) {

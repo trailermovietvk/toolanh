@@ -4,9 +4,10 @@ import { Check, ImagePlus, LockKeyhole, Sparkles, Upload } from "lucide-react";
 interface Props {
   onSelect: (file: File) => void;
   error: string | null;
+  loading: boolean;
 }
 
-export function UploadZone({ onSelect, error }: Props) {
+export function UploadZone({ onSelect, error, loading }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   return (
@@ -41,6 +42,7 @@ export function UploadZone({ onSelect, error }: Props) {
       </section>
       <section
         className={`upload-card ${dragging ? "dragging" : ""}`}
+        aria-busy={loading}
         onDragEnter={(event) => {
           event.preventDefault();
           setDragging(true);
@@ -54,7 +56,7 @@ export function UploadZone({ onSelect, error }: Props) {
           event.preventDefault();
           setDragging(false);
           const file = event.dataTransfer.files[0];
-          if (file) onSelect(file);
+          if (file && !loading) onSelect(file);
         }}
       >
         <div className="upload-card-inner">
@@ -67,17 +69,19 @@ export function UploadZone({ onSelect, error }: Props) {
           <button
             className="primary large"
             onClick={() => inputRef.current?.click()}
+            disabled={loading}
           >
-            <Upload size={19} /> Chọn ảnh
+            <Upload size={19} /> {loading ? "Đang mở ảnh…" : "Chọn ảnh"}
           </button>
           <input
             ref={inputRef}
             type="file"
+            aria-label="Chọn ảnh từ thiết bị"
             accept="image/jpeg,image/png,image/webp"
             hidden
             onChange={(event) => {
               const file = event.target.files?.[0];
-              if (file) onSelect(file);
+              if (file && !loading) onSelect(file);
               event.target.value = "";
             }}
           />
