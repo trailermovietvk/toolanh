@@ -9,7 +9,7 @@
   - AUTO hiện ưu tiên BEN2 General để không áp một model portrait-only lên sản phẩm, động vật, xe, đồ nội thất hoặc chủ thể phức tạp.
   - GENERAL dùng onnx-community/BEN2-ONNX, giấy phép MIT, phù hợp ảnh general-purpose.
   - PORTRAIT dùng Xenova/modnet, giấy phép Apache-2.0, nhẹ hơn và tối ưu cho người/tóc.
-- AI chạy trong Web Worker. Runtime ưu tiên WebGPU và tự nạp lại model bằng WASM/CPU nếu WebGPU lỗi lúc tải hoặc lúc inference.
+- AI chạy trong Web Worker. Runtime ưu tiên WebGPU; nếu GPU lỗi lúc tải hoặc inference, ứng dụng hủy worker đó và retry bằng WASM/CPU trong một worker mới sạch.
 - Trạng thái tách rõ Downloading AI model, Loading AI, Removing background, Refining edges và Rendering image.
 - Before/After, xem ảnh gốc, zoom, pan và fit/reset zoom.
 - Mask editor Restore/Erase ánh xạ tới pixel ảnh gốc, brush size/hardness, sparse undo/redo, reset, smooth và feather.
@@ -51,7 +51,7 @@ Thư mục deploy là dist.
 
 ## Kiến trúc
 
-- src/workers/background.worker.ts: lazy-load model, progress, inference ngoài main thread và WebGPU → WASM retry thật.
+- src/workers/background.worker.ts: lazy-load model, progress và inference ngoài main thread; lỗi WebGPU được báo về service để retry trong worker WASM mới.
 - src/services/backgroundRemoval.ts: vòng đời worker, chống tác vụ đồng thời, cancellation và kết quả typed.
 - src/editor/geometry.ts: crop, hit-test, mapping tọa độ và composition geometry dùng chung.
 - src/editor/maskHistory.ts: delta history có giới hạn bộ nhớ.
@@ -64,7 +64,7 @@ Thư mục deploy là dist.
 
 Không có backend và không upload ảnh. Trình duyệt kết nối tới Hugging Face để lấy config/trọng số model và jsDelivr để lấy binary ONNX Runtime đúng phiên bản. Transformers.js quản lý browser cache cho model/runtime; Workbox chỉ precache app shell và không cache lặp các file AI lớn. Vì vậy app shell có thể mở offline sau lần truy cập đầu, nhưng engine/runtime chưa từng tải vẫn cần mạng.
 
-WebGPU hoạt động tốt nhất trên Chromium mới. Khi không có hoặc khi inference WebGPU lỗi, worker tự dispose model và retry một lần bằng WASM/CPU. Safari/Firefox tùy phiên bản và thiết bị có thể chỉ dùng WASM.
+WebGPU hoạt động tốt nhất trên Chromium mới. Khi không có hoặc khi inference WebGPU lỗi, service terminate worker GPU và retry một lần trong worker mới chỉ dùng WASM/CPU. Các tác vụ tiếp theo trong cùng phiên tiếp tục dùng WASM. Safari/Firefox tùy phiên bản và thiết bị có thể chỉ dùng WASM.
 
 ## Giới hạn thực tế
 

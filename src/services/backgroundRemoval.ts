@@ -20,10 +20,20 @@ interface PendingTask {
   resolve: (result: MaskResult) => void;
   reject: (error: Error) => void;
   onProgress: ProgressHandler;
+  file: File;
+  engine: RemovalEngine;
+  retriedWithWasm: boolean;
 }
 
 interface WorkerPayload {
-  type: "progress" | "ready" | "fallback" | "inference" | "result" | "error";
+  type:
+    | "progress"
+    | "ready"
+    | "fallback"
+    | "retry-wasm"
+    | "inference"
+    | "result"
+    | "error";
   id?: string;
   stage?: AiProgress["stage"];
   percent?: number;
@@ -40,6 +50,7 @@ class BackgroundRemovalService {
   private tasks = new Map<string, PendingTask>();
   private generation = 0;
   private busyGeneration: number | null = null;
+  private webGpuUnavailable = false;
 
   private ensureWorker() {
     if (this.worker) return;
@@ -65,6 +76,10 @@ class BackgroundRemovalService {
 
   private handleMessage(payload: WorkerPayload) {
     const task = payload.id ? this.tasks.get(payload.id) : undefined;
+    if (payload.type === "retry-wasm" && task && payload.id) {
+      void this.retryWithFreshWasmWorker(payload.id, task);
+      return;
+    }
     if (payload.type === "progress" || payload.type === "fallback") {
       const recipients = task ? [task] : [...this.tasks.values()];
       for (const pending of recipients) {
@@ -102,7 +117,10 @@ class BackgroundRemovalService {
       });
       this.tasks.delete(payload.id);
     } else if (payload.type === "error") {
-      const error = new Error(payload.message ?? "Không thể xử lý ảnh.");
+      const detail = payload.message ?? "Không thể xử lý ảnh.";
+      const error = new Error(
+        task?.retriedWithWasm ? `WASM fallback failed: ${detail}` : detail,
+      );
       if (task && payload.id) {
         task.reject(error);
         this.tasks.delete(payload.id);
@@ -110,6 +128,49 @@ class BackgroundRemovalService {
         for (const pending of this.tasks.values()) pending.reject(error);
         this.tasks.clear();
       }
+    }
+  }
+
+  private async retryWithFreshWasmWorker(id: string, task: PendingTask) {
+    if (task.retriedWithWasm) {
+      task.reject(new Error("WASM/CPU retry failed."));
+      this.tasks.delete(id);
+      return;
+    }
+    task.retriedWithWasm = true;
+    this.webGpuUnavailable = true;
+    task.onProgress(
+      3,
+      "WebGPU không tương thích - đang khởi động lại bằng WASM/CPU...",
+      "loading",
+    );
+
+    const failedWorker = this.worker;
+    failedWorker?.terminate();
+    if (this.worker === failedWorker) this.worker = null;
+
+    try {
+      const bytes = await task.file.arrayBuffer();
+      if (this.tasks.get(id) !== task) return;
+      this.ensureWorker();
+      this.worker?.postMessage(
+        {
+          type: "process",
+          id,
+          engine: task.engine,
+          preferWebGpu: false,
+          bytes,
+          mime: task.file.type,
+        },
+        [bytes],
+      );
+    } catch (error) {
+      task.reject(
+        error instanceof Error
+          ? error
+          : new Error("Không thể khởi động lại bằng WASM/CPU."),
+      );
+      this.tasks.delete(id);
     }
   }
 
@@ -130,13 +191,20 @@ class BackgroundRemovalService {
       this.ensureWorker();
       const id = crypto.randomUUID();
       return await new Promise((resolve, reject) => {
-        this.tasks.set(id, { resolve, reject, onProgress });
+        this.tasks.set(id, {
+          resolve,
+          reject,
+          onProgress,
+          file,
+          engine,
+          retriedWithWasm: false,
+        });
         this.worker?.postMessage(
           {
             type: "process",
             id,
             engine,
-            preferWebGpu,
+            preferWebGpu: preferWebGpu && !this.webGpuUnavailable,
             bytes,
             mime: file.type,
           },

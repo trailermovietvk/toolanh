@@ -44,6 +44,18 @@ async function createRemover(
 }
 
 type Remover = Awaited<ReturnType<typeof createRemover>>;
+
+class WebGpuFailure extends Error {
+  constructor(error: unknown) {
+    super(
+      error instanceof Error
+        ? error.message
+        : "WebGPU could not initialize or run the model.",
+    );
+    this.name = "WebGpuFailure";
+  }
+}
+
 let remover: Remover | null = null;
 let activeEngine: ResolvedEngine | null = null;
 let activeDevice: InferenceDevice = "wasm";
@@ -58,10 +70,8 @@ function send(payload: object, transfer?: Transferable[]) {
 }
 
 async function disposeModel() {
-  // A failed WebGPU pipeline can leave the session in an invalid state. In
-  // that state ONNX Runtime may throw the original GPU error again while
-  // disposing the session. Clear our references first and treat disposal as
-  // best-effort so that the WASM fallback can still be created.
+  // A failed backend can throw its original error again during disposal.
+  // Clear references first and keep cleanup best-effort.
   const current = remover;
   remover = null;
   activeEngine = null;
@@ -89,12 +99,10 @@ function modelProgress(event: ModelProgress) {
 async function load(
   engine: RemovalEngine,
   preferWebGpu: boolean,
-  force = false,
 ) {
   const resolved = resolveEngine(engine);
   const requested = selectInferenceDevice(preferWebGpu, webGpuUnavailable);
   if (
-    !force &&
     remover &&
     activeEngine === resolved &&
     activeDevice === requested
@@ -119,17 +127,7 @@ async function load(
     } catch (error) {
       if (requested === "webgpu") {
         webGpuUnavailable = true;
-        await disposeModel();
-        send({
-          type: "fallback",
-          stage: "loading",
-          percent: 2,
-          message: "WebGPU failed - switching to WASM/CPU...",
-        });
-        remover = await createRemover(resolved, "wasm", modelProgress);
-        activeEngine = resolved;
-        activeDevice = "wasm";
-        send({ type: "ready", engine: resolved, device: activeDevice });
+        throw new WebGpuFailure(error);
       } else {
         throw error;
       }
@@ -140,7 +138,7 @@ async function load(
   return loading;
 }
 
-async function infer(message: ProcessMessage, allowFallback = true) {
+async function infer(message: ProcessMessage) {
   await load(message.engine, message.preferWebGpu);
   if (!remover || !activeEngine) throw new Error("AI model is unavailable.");
   send({
@@ -181,26 +179,9 @@ async function infer(message: ProcessMessage, allowFallback = true) {
       [mask.buffer],
     );
   } catch (error) {
-    if (activeDevice === "webgpu" && allowFallback) {
+    if (activeDevice === "webgpu") {
       webGpuUnavailable = true;
-      send({
-        type: "fallback",
-        id: message.id,
-        stage: "loading",
-        percent: 3,
-        message: "WebGPU inference failed - retrying with WASM/CPU...",
-      });
-      try {
-        await load(message.engine, false, true);
-        await infer({ ...message, preferWebGpu: false }, false);
-      } catch (fallbackError) {
-        const detail =
-          fallbackError instanceof Error
-            ? fallbackError.message
-            : 'Unknown WASM error.';
-        throw new Error('WASM fallback failed: ' + detail);
-      }
-      return;
+      throw new WebGpuFailure(error);
     }
     throw error;
   }
@@ -215,14 +196,25 @@ self.onmessage = async (event: MessageEvent<WorkerMessage>) => {
       await load(event.data.engine, event.data.preferWebGpu);
     else await infer(event.data);
   } catch (error) {
-    send({
-      type: "error",
-      id: event.data.type === "process" ? event.data.id : undefined,
-      message:
-        error instanceof Error
-          ? error.message
-          : "AI could not process this image.",
-    });
+    const id = event.data.type === "process" ? event.data.id : undefined;
+    if (error instanceof WebGpuFailure && id) {
+      send({
+        type: "retry-wasm",
+        id,
+        stage: "loading",
+        percent: 3,
+        message: "WebGPU failed - restarting with WASM/CPU...",
+      });
+    } else {
+      send({
+        type: "error",
+        id,
+        message:
+          error instanceof Error
+            ? error.message
+            : "AI could not process this image.",
+      });
+    }
   }
 };
 
